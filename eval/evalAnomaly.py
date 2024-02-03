@@ -14,6 +14,7 @@ from sklearn.metrics import roc_auc_score, roc_curve, auc, precision_recall_curv
 from enet import ENet
 from bisenetv1 import BiSeNetV1
 import sys
+from torchvision.transforms import Resize
 
 seed = 42
 
@@ -84,8 +85,8 @@ def main():
     parser.add_argument('--datadir', default="/home/shyam/ViT-Adapter/segmentation/data/cityscapes/")
     parser.add_argument('--num-workers', type=int, default=4)
     parser.add_argument('--batch-size', type=int, default=1)
-    parser.add_argument('--method', default="")
-    parser.add_argument('--classifier', default="pre-trained erfnet")
+    parser.add_argument('--method', default="msp")
+    parser.add_argument('--temperature', default=1)
     # parser.add_argument('--cpu', action='store_true')
     args = parser.parse_args()
     
@@ -97,45 +98,54 @@ def main():
     # modelpath = args.loadDir + args.loadModel
     weightspath = args.weightsDir + args.model
 
-    print ("Loading model: " + args.model)
-    print ("Loading weights: " + weightspath)
+    print (f"Loading model: {args.model}")
+    print(f"Method: {args.method}")
+    print(f"Temperature: {args.temperature}")
+    print (f"Loading weights: {weightspath}")
 
     # Create model and load state dict
     if args.model == "erfnet":
-        model = ERFNet(NUM_CLASSES)
-        model = torch.nn.DataParallel(model).to(device)
+        model = ERFNet(NUM_CLASSES).to(device)
         model = load_my_state_dict(model, torch.load(weightspath, map_location=lambda storage, loc: storage))
-    elif args.model == "bisenetv1":
-        model = BiSeNetV1(NUM_CLASSES)
+    elif args.model == "bisenet":
+        model = BiSeNetV1(NUM_CLASSES).to(device)
         model.aux_mode = 'eval' # aux_mode can be train, eval, pred
-        model = torch.nn.DataParallel(model).to(device)
         model = load_my_state_dict(model, torch.load(weightspath))
     elif args.model == "enet":
         model = ENet(NUM_CLASSES)
-        model = torch.nn.DataParallel(model).to(device)
         model = ENet(NUM_CLASSES)
-        model = load_my_state_dict(model.module, torch.load(weightspath)['state_dict'])
+        # model = load_my_state_dict(model, torch.load(weightspath, map_location=torch.device(device))['state_dict'])
+        enet_weights = torch.load(weightspath, map_location=torch.device('cpu'))
+        model.load_state_dict(enet_weights['state_dict'])
+        model.to(device)
     
     print ("Model and weights loaded successfully!")
     model.eval()
     
-    for path in glob.glob(os.path.expanduser(str(args.input[0]))):
+    validation_images = glob.glob(os.path.expanduser(str(args.input[0])))
+    if device=="cpu":
+        validation_images = validation_images[0:2]
+    for path in validation_images:
         print(path)
         images = torch.from_numpy(np.array(Image.open(path).convert('RGB'))).unsqueeze(0).float().to(device)
         images = images.permute(0,3,1,2)
         
+        if args.model == 'bisenet':
+            images = Resize((1024, 1024))(images)
+        
         with torch.no_grad():
             model_output = model(images)
             
-        # Compute model result to be used
-        if args.model == "erfnet":
-            result = model_output.squeeze(0)
-        elif args.model == "bisenetv1":
-            result = model_output[0].squeeze(0)
-        elif args.model == "enet":
-            result = torch.roll(model_output, -1, 0)
+        if args.model == "bisenet":
+            model_output = model_output[0].squeeze(0)
+            
+        result = torch.roll(model_output.squeeze(0), -1, 0)
+        print(f"roll result size: {result.size()}")
+        result = model_output.squeeze(0)
+        print(f"squeeze only result size: {result.size()}")
         
         # Compute anomaly_result based on the method
+        result = model_output.squeeze(0)
         trimmed_result = result[:-1]
         if args.method == 'maxlogit':
             # Minimum logit is most anomalous
@@ -154,9 +164,11 @@ def main():
             softmax_probs = softmax(trimmed_result / args.temperature, dim=0)
             max_prob, _ = torch.max(softmax_probs, dim=0)
             anomaly_result = 1.0 - max_prob
-        elif args.classifier == 'void':
+        elif args.method == 'void':
             softmax_probs = softmax(result, dim=0)
+            print(f"softmax_probs size: {softmax_probs.size()}")
             anomaly_result = softmax_probs[-1]
+            print(f"anomaly_result size: {anomaly_result.size()}")
         else:
             sys.exit("No method argument is defined.")
         
@@ -186,6 +198,9 @@ def main():
     ood_mask = (ood_gts == 1)
     #  in-distribution regions
     ind_mask = (ood_gts == 0)
+
+    print(f"anomaly_scores size: {anomaly_scores.shape}")
+    print(f"ood_mask size: {ood_mask.shape}")
 
     ood_out = anomaly_scores[ood_mask]
     ind_out = anomaly_scores[ind_mask]
