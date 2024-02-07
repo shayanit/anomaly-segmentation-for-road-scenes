@@ -70,6 +70,7 @@ def load_my_state_dict(model, state_dict):  #custom function to load model when 
     return model
 
 def main():
+    print("Evaluating:")
     parser = ArgumentParser()
     parser.add_argument("--input", type=str)  
     parser.add_argument('--weightsDir',default="../trained_models/")
@@ -91,11 +92,6 @@ def main():
 
     # modelpath = args.loadDir + args.loadModel
     weightspath = args.weightsDir + args.model
-    dataset = args.input
-    dataset = dataset.split("/")[-3]
-
-    result_content = f"model: {args.model}, method: {args.method}, dataset: {dataset}, temperature: {args.temperature}"
-    print(f"loading {result_content}")
     # print (f"Loading weights: {weightspath}")
 
     # Create model and load state dict
@@ -120,10 +116,8 @@ def main():
     validation_images = glob.glob(os.path.expanduser(str(args.input)))
     if device=="cpu":
         validation_images = validation_images[0:1]
-    print("working...", end='')
     for path in validation_images:
-        # print(path)
-        print(".", end='')
+        print(path)
         images = torch.from_numpy(np.array(Image.open(path).convert('RGB'))).unsqueeze(0).float().to(device)
         images = images.permute(0,3,1,2)
         
@@ -184,7 +178,7 @@ def main():
              anomaly_score_list.append(anomaly_result)
         del result, anomaly_result, ood_gts, mask, np_mask
         torch.cuda.empty_cache()
-    print("\n")
+
     ood_gts = np.array(ood_gts_list)
     anomaly_scores = np.array(anomaly_score_list)
 
@@ -218,11 +212,13 @@ def main():
     if not os.path.exists(result_path):
         open(result_path, 'w').close()
     
-    file = open(result_path, 'a')
-    result_content = f"{result_content}, AUPRC score: {prc_auc*100.0}, FPR@TPR95: {fpr*100.0}\n"
-    print(f"result: {result_content}")
-    file.write(result_content)
-    file.close()
+    dataset = args.input
+    dataset = dataset.split("/")[-3]
+    result_content = f"model: {args.model}, method: {args.method}, dataset: {dataset}, temperature: {args.temperature}, AUPRC score: {prc_auc*100.0}, FPR@TPR95: {fpr*100.0}\n"
+    print(result_content)
+    
+    with open(result_path, 'a') as file:
+        file.write(result_content)
 
 if __name__ == '__main__':
     main()
