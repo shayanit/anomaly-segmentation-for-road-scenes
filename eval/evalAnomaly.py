@@ -15,7 +15,6 @@ from enet import ENet
 from bisenetv1 import BiSeNetV1
 import sys
 from torchvision.transforms import Resize
-import datetime
 
 seed = 42
 
@@ -72,13 +71,7 @@ def load_my_state_dict(model, state_dict):  #custom function to load model when 
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument(
-        "--input",
-        default="/home/shyam/Mask2Former/unk-eval/RoadObsticle21/images/*.webp",
-        nargs="+",
-        help="A list of space separated input images; "
-        "or a single glob pattern such as 'directory/*.jpg'",
-    )  
+    parser.add_argument("--input", type=str)  
     parser.add_argument('--weightsDir',default="../trained_models/")
     # parser.add_argument('--loadWeights', default="erfnet_pretrained.pth")
     parser.add_argument('--model', default="erfnet")
@@ -98,10 +91,11 @@ def main():
 
     # modelpath = args.loadDir + args.loadModel
     weightspath = args.weightsDir + args.model
+    dataset = args.input
+    dataset = dataset.split("/")[-3]
 
-    print (f"Loading model: {args.model}")
-    print(f"Method: {args.method}")
-    print(f"Temperature: {args.temperature}")
+    result_content = f"loading model: {args.model}, method: {args.method}, dataset: {dataset}, temperature: {args.temperature}"
+    print(result_content)
     print (f"Loading weights: {weightspath}")
 
     # Create model and load state dict
@@ -123,7 +117,7 @@ def main():
     print ("Model and weights loaded successfully!")
     model.eval()
     
-    validation_images = glob.glob(os.path.expanduser(str(args.input[0])))
+    validation_images = glob.glob(os.path.expanduser(str(args.input)))
     if device=="cpu":
         validation_images = validation_images[0:1]
     for path in validation_images:
@@ -145,7 +139,7 @@ def main():
         trimmed_result = result[:-1]
         if args.method == 'maxlogit':
             # Minimum logit is most anomalous
-            print(trimmed_result.size())
+            # print(trimmed_result.size())
             anomaly_result, _ = torch.max(trimmed_result, dim=0)
             anomaly_result = -1 * anomaly_result
         elif args.method == 'maxentropy':
@@ -164,9 +158,9 @@ def main():
             anomaly_result = 1.0 - max_prob
         elif args.method == 'void':
             softmax_probs = softmax(result, dim=0)
-            print(f"softmax_probs size: {softmax_probs.size()}")
+            # print(f"softmax_probs size: {softmax_probs.size()}")
             anomaly_result = softmax_probs[-1]
-            print(f"anomaly_result size: {anomaly_result.size()}")
+            # print(f"anomaly_result size: {anomaly_result.size()}")
         else:
             sys.exit("No method argument is defined.")
         
@@ -223,7 +217,7 @@ def main():
         open(result_path, 'w').close()
     
     file = open(result_path, 'a')
-    result_content = f"\nmodel: {args.model}, method: {args.method}, temperature: {args.temperature}, AUPRC score: {prc_auc*100.0}, FPR@TPR95: {fpr*100.0}"
+    result_content = f"\n{result_content}, AUPRC score: {prc_auc*100.0}, FPR@TPR95: {fpr*100.0}"
     print(result_content)
     file.write(result_content)
     file.close()
