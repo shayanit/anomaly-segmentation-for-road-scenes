@@ -94,9 +94,9 @@ def main():
     dataset = args.input
     dataset = dataset.split("/")[-3]
 
-    result_content = f"loading model: {args.model}, method: {args.method}, dataset: {dataset}, temperature: {args.temperature}"
-    print(result_content)
-    print (f"Loading weights: {weightspath}")
+    result_content = f"model: {args.model}, method: {args.method}, dataset: {dataset}, temperature: {args.temperature}"
+    print(f"loading {result_content}")
+    # print (f"Loading weights: {weightspath}")
 
     # Create model and load state dict
     if args.model == "erfnet":
@@ -114,14 +114,16 @@ def main():
         model.load_state_dict(enet_weights['state_dict'])
         model.to(device)
     
-    print ("Model and weights loaded successfully!")
+    # print ("Model and weights loaded successfully!")
     model.eval()
     
     validation_images = glob.glob(os.path.expanduser(str(args.input)))
     if device=="cpu":
         validation_images = validation_images[0:1]
+    print("working...", end='')
     for path in validation_images:
-        print(path)
+        # print(path)
+        print(".", end='')
         images = torch.from_numpy(np.array(Image.open(path).convert('RGB'))).unsqueeze(0).float().to(device)
         images = images.permute(0,3,1,2)
         
@@ -182,7 +184,7 @@ def main():
              anomaly_score_list.append(anomaly_result)
         del result, anomaly_result, ood_gts, mask, np_mask
         torch.cuda.empty_cache()
-
+    print("\n")
     ood_gts = np.array(ood_gts_list)
     anomaly_scores = np.array(anomaly_score_list)
 
@@ -191,8 +193,8 @@ def main():
     #  in-distribution regions
     ind_mask = (ood_gts == 0)
 
-    print(f"anomaly_scores size: {anomaly_scores.shape}")
-    print(f"ood_mask size: {ood_mask.shape}")
+    # print(f"anomaly_scores size: {anomaly_scores.shape}")
+    # print(f"ood_mask size: {ood_mask.shape}")
 
     ood_out = anomaly_scores[ood_mask]
     ind_out = anomaly_scores[ind_mask]
@@ -206,8 +208,8 @@ def main():
     prc_auc = average_precision_score(val_label, val_out)
     fpr = fpr_at_95_tpr(val_out, val_label)
 
-    print(f'AUPRC score: {prc_auc*100.0}')
-    print(f'FPR@TPR95: {fpr*100.0}')
+    # print(f'AUPRC score: {prc_auc*100.0}')
+    # print(f'FPR@TPR95: {fpr*100.0}')
 
     # ct = datetime.datetime.now()
     # result_path = f"results {ct}.txt"
@@ -217,8 +219,8 @@ def main():
         open(result_path, 'w').close()
     
     file = open(result_path, 'a')
-    result_content = f"\n{result_content}, AUPRC score: {prc_auc*100.0}, FPR@TPR95: {fpr*100.0}"
-    print(result_content)
+    result_content = f"{result_content}, AUPRC score: {prc_auc*100.0}, FPR@TPR95: {fpr*100.0}\n"
+    print(f"result: {result_content}")
     file.write(result_content)
     file.close()
 
