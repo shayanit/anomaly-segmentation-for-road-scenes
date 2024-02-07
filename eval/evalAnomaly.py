@@ -125,7 +125,7 @@ def main():
     
     validation_images = glob.glob(os.path.expanduser(str(args.input[0])))
     if device=="cpu":
-        validation_images = validation_images[0:2]
+        validation_images = validation_images[0:1]
     for path in validation_images:
         print(path)
         images = torch.from_numpy(np.array(Image.open(path).convert('RGB'))).unsqueeze(0).float().to(device)
@@ -145,7 +145,9 @@ def main():
         trimmed_result = result[:-1]
         if args.method == 'maxlogit':
             # Minimum logit is most anomalous
-            anomaly_result, _ = -torch.max(trimmed_result, dim=0)
+            print(trimmed_result.size())
+            anomaly_result, _ = torch.max(trimmed_result, dim=0)
+            anomaly_result = -1 * anomaly_result
         elif args.method == 'maxentropy':
             # H(p) = -sum_{i=1}^{n} p_i * log(p_i)
             softmax_probs = softmax(trimmed_result, dim=0)
@@ -221,7 +223,7 @@ def main():
         open(result_path, 'w').close()
     
     file = open(result_path, 'a')
-    result_content = f"method: {args.method}, temperature: {args.temperature}, AUPRC score: {prc_auc*100.0}, FPR@TPR95: {fpr*100.0}"
+    result_content = f"\nmodel: {args.model}, method: {args.method}, temperature: {args.temperature}, AUPRC score: {prc_auc*100.0}, FPR@TPR95: {fpr*100.0}"
     print(result_content)
     file.write(result_content)
     file.close()
