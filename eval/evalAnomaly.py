@@ -15,6 +15,7 @@ from enet import ENet
 from bisenetv1 import BiSeNetV1
 import sys
 from torchvision.transforms import Resize
+import datetime
 
 seed = 42
 
@@ -137,12 +138,7 @@ def main():
             model_output = model(images)
             
         if args.model == "bisenet":
-            model_output = model_output[0].squeeze(0)
-            
-        result = torch.roll(model_output.squeeze(0), -1, 0)
-        print(f"roll result size: {result.size()}")
-        result = model_output.squeeze(0)
-        print(f"squeeze only result size: {result.size()}")
+            model_output = model_output[0]
         
         # Compute anomaly_result based on the method
         result = model_output.squeeze(0)
@@ -217,10 +213,17 @@ def main():
     print(f'AUPRC score: {prc_auc*100.0}')
     print(f'FPR@TPR95: {fpr*100.0}')
 
-    if not os.path.exists('results.txt'):
-        open('results.txt', 'w').close()
-    file = open('results.txt', 'a')
-    file.write(('    AUPRC score:' + str(prc_auc*100.0) + '   FPR@TPR95:' + str(fpr*100.0) ))
+    # ct = datetime.datetime.now()
+    # result_path = f"results {ct}.txt"
+    # result_path = result_path.replace(" ", "-").replace(":", "-").replace(".", "-")
+    result_path = "results.txt"
+    if not os.path.exists(result_path):
+        open(result_path, 'w').close()
+    
+    file = open(result_path, 'a')
+    result_content = f"method: {args.method}, temperature: {args.temperature}, AUPRC score: {prc_auc*100.0}, FPR@TPR95: {fpr*100.0}"
+    print(result_content)
+    file.write(result_content)
     file.close()
 
 if __name__ == '__main__':
