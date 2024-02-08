@@ -62,12 +62,7 @@ def max_entropy_normalized(logits):
     # Calculate entropy for each pixel
     entropy = -torch.sum(probabilities * torch.log(probabilities + 1e-9), dim=0)  # Adding small epsilon to avoid log(0)
     
-    # Normalize entropy values to [0, 1]
-    min_entropy = torch.min(entropy)
-    max_entropy = torch.max(entropy)
-    normalized_entropy = (entropy - min_entropy) / (max_entropy - min_entropy + 1e-9)  # Adding small epsilon to avoid division by zero
-    
-    return normalized_entropy
+    return min_max_scale(entropy, min_scale=0, max_scale=1)
 
 def compute_pathGT(path):
     pathGT = path.replace('images', 'labels_masks')
@@ -240,7 +235,16 @@ def main():
     # threshold = 0.5 
     threshold = optimal_threshold
     
-    print(f"optimal threshold is: {threshold}")
+    if args.method == 'maxlogit':
+        print("maxlogit method score values are normalized in the range [-1, 1]")
+    elif args.method == 'maxentropy':
+        print("maxentropy method score values are normalized in the range [0, 1]")
+    elif args.method == 'msp':
+        print("msp method score values are softmax in the range [-1, 1]")
+    elif args.method == 'void':
+        print("void classifier method score values are softmax in the range [-1, 1]")
+
+    # print(f"optimal threshold is: {threshold}")
     
     # if score is bigger than treshold, it's an anomaly
     prediction = (val_out > threshold).astype(int)
@@ -251,7 +255,7 @@ def main():
     dataset = args.input
     dataset = dataset.split("/")[-3]
     
-    result_content = f"model: {args.model}, method: {args.method}, dataset: {dataset}, temperature: {args.temperature}, AUPRC score: {prc_auc*100.0}, FPR@TPR95: {fpr95*100.0}, IoU: {IoU}\n"
+    result_content = f"model: {args.model}, method: {args.method}, dataset: {dataset}, temperature: {args.temperature}, AUPRC score: {prc_auc*100.0}, FPR@TPR95: {fpr95*100.0}, optimal_threshold: {optimal_threshold}, IoU: {IoU}\n"
     print(result_content)
     
     result_path = "results.txt"
