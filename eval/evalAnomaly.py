@@ -111,7 +111,7 @@ def main():
     parser.add_argument('--num-workers', type=int, default=4)
     parser.add_argument('--batch-size', type=int, default=1)
     parser.add_argument('--method', default="msp")
-    parser.add_argument('--temperature', default=1)
+    parser.add_argument('--temperature', type=float, default=1)
     # parser.add_argument('--cpu', action='store_true')
     args = parser.parse_args()
     
@@ -217,8 +217,9 @@ def main():
     a = np.max(val_out)
     b = np.min(val_out)
 
-    prc_auc = average_precision_score(val_label, val_out)
-    fpr95 = fpr_at_95_tpr(val_out, val_label)
+    
+    prc_auc = average_precision_score(val_label, val_out) # precision=true_positives/total_positives, higher is better
+    fpr95 = fpr_at_95_tpr(val_out, val_label) #false positive rate at 95% true positive, lower is better
     
     from sklearn.metrics import roc_curve, roc_auc_score
 
