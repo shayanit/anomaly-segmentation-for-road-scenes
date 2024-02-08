@@ -15,6 +15,7 @@ from enet import ENet
 from bisenetv1 import BiSeNetV1
 import sys
 from torchvision.transforms import Resize
+import torch.nn.functional as F
 
 seed = 42
 
@@ -29,8 +30,44 @@ NUM_CLASSES = 20
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = True
 
-softmax = torch.nn.functional.softmax
-log_softmax = torch.nn.functional.log_softmax
+def min_max_scale(logits, min_scale=-1, max_scale=1):
+    min_logit = torch.min(logits)
+    max_logit = torch.max(logits)
+    scaled_logits = (logits - min_logit) / (max_logit - min_logit) * (max_scale - min_scale) + min_scale
+    return scaled_logits
+
+def max_logit_normalized(logits):
+    max_logits, _ = torch.max(logits, dim=0)
+    return min_max_scale(max_logits)
+
+def intersection_over_union(y_true, y_pred):
+    intersection = np.logical_and(y_true, y_pred)
+    union = np.logical_or(y_true, y_pred)
+    iou = np.sum(intersection) / np.sum(union)
+    return iou
+
+# Maximum Softmax Probability
+def max_softmax(logits, temperature):
+    softmax_probs = F.softmax(logits / temperature, dim=0)
+    max_prob, _ = torch.max(softmax_probs, dim=0) # choose the highest maximum probability among all the class probabilities
+    return max_prob 
+
+# Entropy formula: H(x) = -sum(p_i * log(p_i))
+# Gives normalalized maximum entropy 
+# Entropy measures the uncertainty or disorder in a probability distribution.
+def max_entropy_normalized(logits):
+    # Calculate softmax probabilities
+    probabilities = F.softmax(logits, dim=0)
+    
+    # Calculate entropy for each pixel
+    entropy = -torch.sum(probabilities * torch.log(probabilities + 1e-9), dim=0)  # Adding small epsilon to avoid log(0)
+    
+    # Normalize entropy values to [0, 1]
+    min_entropy = torch.min(entropy)
+    max_entropy = torch.max(entropy)
+    normalized_entropy = (entropy - min_entropy) / (max_entropy - min_entropy + 1e-9)  # Adding small epsilon to avoid division by zero
+    
+    return normalized_entropy
 
 def compute_pathGT(path):
     pathGT = path.replace('images', 'labels_masks')
@@ -134,29 +171,15 @@ def main():
         result = model_output.squeeze(0)
         trimmed_result = result[:-1]
         if args.method == 'maxlogit':
-            # Minimum logit is most anomalous
-            # print(trimmed_result.size())
-            anomaly_result, _ = torch.max(trimmed_result, dim=0)
-            anomaly_result = -1 * anomaly_result
+            # Minimum logit is most anomalous as it's least confident
+            anomaly_result = -1 * max_logit_normalized(trimmed_result)
         elif args.method == 'maxentropy':
-            # H(p) = -sum_{i=1}^{n} p_i * log(p_i)
-            softmax_probs = softmax(trimmed_result, dim=0)
-            log_softmax_probs = log_softmax(trimmed_result, dim=0)
-            elementwise_product = -softmax_probs * log_softmax_probs
-            pixelwise_entropy = torch.sum(elementwise_product, dim=0)
-            num_classes = torch.tensor(trimmed_result.size(0))
-            normalized_entropy = torch.div(pixelwise_entropy, torch.log(num_classes))
-            anomaly_result = normalized_entropy
+            anomaly_result = max_entropy_normalized(trimmed_result)
         elif args.method == 'msp':
-            # Maximum Softmax Probability
-            softmax_probs = softmax(trimmed_result / args.temperature, dim=0)
-            max_prob, _ = torch.max(softmax_probs, dim=0)
-            anomaly_result = 1.0 - max_prob
+            anomaly_result = 1 - max_softmax(trimmed_result, args.temperature) # so that higher anomaly scores correspond to higher likelihoods of being anomalous
         elif args.method == 'void':
-            softmax_probs = softmax(result, dim=0)
-            # print(f"softmax_probs size: {softmax_probs.size()}")
+            softmax_probs = F.softmax(result, dim=0)
             anomaly_result = softmax_probs[-1]
-            # print(f"anomaly_result size: {anomaly_result.size()}")
         else:
             sys.exit("No method argument is defined.")
         
@@ -176,7 +199,7 @@ def main():
              ood_gts_list.append(ood_gts)
              anomaly_result = anomaly_result.data.cpu().numpy()
              anomaly_score_list.append(anomaly_result)
-        del result, anomaly_result, ood_gts, mask, np_mask
+        # del result, anomaly_result, ood_gts, mask, np_mask
         torch.cuda.empty_cache()
 
     ood_gts = np.array(ood_gts_list)
@@ -198,25 +221,42 @@ def main():
     
     val_out = np.concatenate((ind_out, ood_out))
     val_label = np.concatenate((ind_label, ood_label))
+    
+    a = np.max(val_out)
+    b = np.min(val_out)
 
     prc_auc = average_precision_score(val_label, val_out)
-    fpr = fpr_at_95_tpr(val_out, val_label)
+    fpr95 = fpr_at_95_tpr(val_out, val_label)
+    
+    from sklearn.metrics import roc_curve, roc_auc_score
 
-    # print(f'AUPRC score: {prc_auc*100.0}')
-    # print(f'FPR@TPR95: {fpr*100.0}')
+    # Compute ROC curve and AUC
+    fpr, tpr, thresholds = roc_curve(val_label, val_out)
 
-    # ct = datetime.datetime.now()
-    # result_path = f"results {ct}.txt"
-    # result_path = result_path.replace(" ", "-").replace(":", "-").replace(".", "-")
+    # Find optimal threshold based on the ROC curve
+    optimal_threshold_index = np.argmax(tpr - fpr)
+    optimal_threshold = thresholds[optimal_threshold_index]
+    
+    # threshold = 0.5 
+    threshold = optimal_threshold
+    
+    print(f"optimal threshold is: {threshold}")
+    
+    # if score is bigger than treshold, it's an anomaly
+    prediction = (val_out > threshold).astype(int)
+    ground_truth = val_label
+    
+    IoU = intersection_over_union(ground_truth, prediction)
+
+    dataset = args.input
+    dataset = dataset.split("/")[-3]
+    
+    result_content = f"model: {args.model}, method: {args.method}, dataset: {dataset}, temperature: {args.temperature}, AUPRC score: {prc_auc*100.0}, FPR@TPR95: {fpr95*100.0}, IoU: {IoU}\n"
+    print(result_content)
+    
     result_path = "results.txt"
     if not os.path.exists(result_path):
         open(result_path, 'w').close()
-    
-    dataset = args.input
-    dataset = dataset.split("/")[-3]
-    result_content = f"model: {args.model}, method: {args.method}, dataset: {dataset}, temperature: {args.temperature}, AUPRC score: {prc_auc*100.0}, FPR@TPR95: {fpr*100.0}\n"
-    print(result_content)
-    
     with open(result_path, 'a') as file:
         file.write(result_content)
 
