@@ -36,3 +36,5 @@ model: erfnet, method: maxlogit, dataset: RoadAnomaly21, temperature: 1, AUPRC s
 model: erfnet, method: maxlogit, dataset: RoadAnomaly21, temperature: 1, AUPRC score: 1.245103972709141, FPR@TPR95: 89.16379685795232, IoU: 0.017939282428702852
 model: erfnet, method: maxlogit, dataset: RoadAnomaly21, temperature: 1, AUPRC score: 1.245103972709141, FPR@TPR95: 89.16379685795232, optimal_threshold: -0.1628403663635254, IoU: 0.017939282428702852
 model: erfnet, method: void, dataset: RoadAnomaly21, temperature: 1, AUPRC score: 1.6870969308254946, FPR@TPR95: 95.06094508375949, optimal_threshold: inf, IoU: 0.0
+model: erfnet, method: maxentropy, dataset: RoadAnomaly21, temperature: 1, AUPRC score: 1.5676273946204144, FPR@TPR95: 95.58119698064966, optimal_threshold: 0.369239866733551, IoU: 6.509569066527795e-05
+model: erfnet, method: maxentropy, dataset: RoadAnomaly21, temperature: 1, AUPRC score: 1.5676273946204144, FPR@TPR95: 95.58119698064966, optimal_threshold: 0.7317360043525696, IoU: 6.509569066527795e-05

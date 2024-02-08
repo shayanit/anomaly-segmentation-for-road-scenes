@@ -52,17 +52,15 @@ def max_softmax(logits, temperature):
     max_prob, _ = torch.max(softmax_probs, dim=0) # choose the highest maximum probability among all the class probabilities
     return max_prob 
 
-# Entropy formula: H(x) = -sum(p_i * log(p_i))
-# Gives normalalized maximum entropy 
+# Entropy formula: -sum(p_i * log(p_i)) / log(num_classes)
 # Entropy measures the uncertainty or disorder in a probability distribution.
-def max_entropy_normalized(logits):
-    # Calculate softmax probabilities
-    probabilities = F.softmax(logits, dim=0)
-    
-    # Calculate entropy for each pixel
-    entropy = -torch.sum(probabilities * torch.log(probabilities + 1e-9), dim=0)  # Adding small epsilon to avoid log(0)
-    
+def max_entropy_normalized(logits, epsilon=1e-10):
+    assert len(logits.shape) == 3
+    probs = F.softmax(logits, dim=0)
+    probs = probs + epsilon
+    entropy = torch.div(torch.sum(-probs * torch.log(probs), dim=0), torch.log(torch.tensor(probs.shape[0], dtype=torch.float32)))
     return min_max_scale(entropy, min_scale=0, max_scale=1)
+    # return entropy
 
 def compute_pathGT(path):
     pathGT = path.replace('images', 'labels_masks')
@@ -135,7 +133,6 @@ def main():
         model.aux_mode = 'eval' # aux_mode can be train, eval, pred
         model = load_my_state_dict(model, torch.load(weightspath))
     elif args.model == "enet":
-        model = ENet(NUM_CLASSES)
         model = ENet(NUM_CLASSES)
         # model = load_my_state_dict(model, torch.load(weightspath, map_location=torch.device(device))['state_dict'])
         enet_weights = torch.load(weightspath, map_location=torch.device('cpu'))
