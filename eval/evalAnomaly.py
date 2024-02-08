@@ -100,11 +100,10 @@ def load_my_state_dict(model, state_dict):  #custom function to load model when 
     return model
 
 def main():
-    print("Evaluating:")
     parser = ArgumentParser()
     parser.add_argument("--input", type=str)  
-    parser.add_argument('--weightsDir',default="../trained_models/")
-    # parser.add_argument('--loadWeights', default="erfnet_pretrained.pth")
+    parser.add_argument('--loadDir',default="../trained_models/")
+    parser.add_argument('--loadWeights', default="erfnet_pretrained.pth")
     parser.add_argument('--model', default="erfnet")
     parser.add_argument('--subset', default="val")  #can be val or train (must have labels)
     parser.add_argument('--datadir', default="/home/shyam/ViT-Adapter/segmentation/data/cityscapes/")
@@ -115,14 +114,18 @@ def main():
     # parser.add_argument('--cpu', action='store_true')
     args = parser.parse_args()
     
+    dataset = args.input
+    dataset = dataset.split("/")[-3]
+    evaluation_props = f"model: {args.model}, method: {args.method}, dataset: {dataset}, temperature: {args.temperature}"
+    print(f"Evaluating - {evaluation_props}")
+    
     anomaly_score_list = []
     ood_gts_list = []
     
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    # modelpath = args.loadDir + args.loadModel
-    weightspath = args.weightsDir + args.model
-    # print (f"Loading weights: {weightspath}")
+    modelpath = args.loadDir + args.model
+    weightspath = args.loadDir + args.loadWeights
 
     # Create model and load state dict
     if args.model == "erfnet":
@@ -249,11 +252,8 @@ def main():
     ground_truth = val_label
     
     IoU = intersection_over_union(ground_truth, prediction)
-
-    dataset = args.input
-    dataset = dataset.split("/")[-3]
     
-    result_content = f"model: {args.model}, method: {args.method}, dataset: {dataset}, temperature: {args.temperature}, AUPRC score: {prc_auc*100.0}, FPR@TPR95: {fpr95*100.0}, optimal_threshold: {optimal_threshold}, IoU: {IoU}\n"
+    result_content = f"{evaluation_props}, AUPRC score: {prc_auc*100.0}, FPR@TPR95: {fpr95*100.0}, optimal_threshold: {optimal_threshold}, IoU: {IoU}\n"
     print(result_content)
     
     result_path = "results.txt"
