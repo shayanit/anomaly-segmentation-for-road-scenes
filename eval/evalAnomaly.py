@@ -194,7 +194,7 @@ def main():
              ood_gts_list.append(ood_gts)
              anomaly_result = anomaly_result.data.cpu().numpy()
              anomaly_score_list.append(anomaly_result)
-        # del result, anomaly_result, ood_gts, mask, np_mask
+        del result, anomaly_result, ood_gts, mask, np_mask
         torch.cuda.empty_cache()
 
     ood_gts = np.array(ood_gts_list)
