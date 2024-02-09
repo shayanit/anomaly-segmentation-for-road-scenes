@@ -217,8 +217,8 @@ def main():
     val_out = np.concatenate((ind_out, ood_out))
     val_label = np.concatenate((ind_label, ood_label))
     
-    a = np.max(val_out)
-    b = np.min(val_out)
+    # a = np.max(val_out)
+    # b = np.min(val_out)
 
     
     prc_auc = average_precision_score(val_label, val_out) # precision=true_positives/total_positives, higher is better
