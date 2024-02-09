@@ -117,11 +117,11 @@ def main():
     
     dataset = args.input
     dataset = dataset.split("/")[-3]
-    evaluation_props = f"model: {args.model}, method: {args.method}, dataset: {dataset}, temperature: {args.temperature}"
+    evaluation_props = f"{args.model}, {args.method}, {dataset}, t={args.temperature}"
     print(f"Evaluating - {evaluation_props}")
     
-    anomaly_score_list = []
-    ood_gts_list = []
+    anomaly_score_list = np.array([])
+    ood_gts_list = np.array([])
     
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -150,7 +150,7 @@ def main():
     if device=="cpu":
         validation_images = validation_images[0:1]
     for path in validation_images:
-        print(path) if args.q else ''
+        print(path) if not args.q else ''
         images = torch.from_numpy(np.array(Image.open(path).convert('RGB'))).unsqueeze(0).float().to(device)
         images = images.permute(0,3,1,2)
         
@@ -192,14 +192,19 @@ def main():
             # continue to the next iteration
             continue              
         else:
-             ood_gts_list.append(ood_gts)
              anomaly_result = anomaly_result.data.cpu().numpy()
-             anomaly_score_list.append(anomaly_result)
+            #  ood_gts_list.append(ood_gts)
+            #  anomaly_score_list.append(anomaly_result)
+             ood_gts_list = np.append(ood_gts_list, ood_gts)
+             anomaly_score_list = np.append(anomaly_score_list, anomaly_result)
         del result, anomaly_result, ood_gts, mask, np_mask
         torch.cuda.empty_cache()
 
-    ood_gts = np.array(ood_gts_list)
-    anomaly_scores = np.array(anomaly_score_list)
+    # ood_gts = np.array(ood_gts_list)
+    # anomaly_scores = np.array(anomaly_score_list)
+    
+    ood_gts = ood_gts_list
+    anomaly_scores = anomaly_score_list
 
     # out-of-distribution regions
     ood_mask = (ood_gts == 1)
@@ -225,36 +230,38 @@ def main():
     prc_auc = average_precision_score(val_label, val_out) # precision=true_positives/total_positives, higher is better
     fpr95 = fpr_at_95_tpr(val_out, val_label) #false positive rate at 95% true positive, lower is better
     
-    from sklearn.metrics import roc_curve, roc_auc_score
+    # from sklearn.metrics import roc_curve, roc_auc_score
 
     # Compute ROC curve and AUC
-    fpr, tpr, thresholds = roc_curve(val_label, val_out)
+    # fpr, tpr, thresholds = roc_curve(val_label, val_out)
 
     # Find optimal threshold based on the ROC curve
-    optimal_threshold_index = np.argmax(tpr - fpr)
-    optimal_threshold = thresholds[optimal_threshold_index]
+    # optimal_threshold_index = np.argmax(tpr - fpr)
+    # optimal_threshold = thresholds[optimal_threshold_index]
     
     # threshold = 0.5 
-    threshold = optimal_threshold
+    # threshold = optimal_threshold
     
-    if args.method == 'maxlogit':
-        print("maxlogit method score values are normalized in the range [-1, 1]")
-    elif args.method == 'maxentropy':
-        print("maxentropy method score values are normalized in the range [0, 1]")
-    elif args.method == 'msp':
-        print("msp method score values are softmax in the range [-1, 1]")
-    elif args.method == 'void':
-        print("void classifier method score values are softmax in the range [-1, 1]")
+    if not args.q:
+        if args.method == 'maxlogit':
+            print("maxlogit method score values are normalized in the range [-1, 1]")
+        elif args.method == 'maxentropy':
+            print("maxentropy method score values are normalized in the range [0, 1]")
+        elif args.method == 'msp':
+            print("msp method score values are softmax in the range [-1, 1]")
+        elif args.method == 'void':
+            print("void classifier method score values are softmax in the range [-1, 1]")
 
     # print(f"optimal threshold is: {threshold}")
     
     # if score is bigger than treshold, it's an anomaly
-    prediction = (val_out > threshold).astype(int)
-    ground_truth = val_label
+    # prediction = (val_out > threshold).astype(int)
+    # ground_truth = val_label
     
-    IoU = intersection_over_union(ground_truth, prediction)
+    # IoU = intersection_over_union(ground_truth, prediction)
     
-    result_content = f"{evaluation_props}, AUPRC score: {prc_auc*100.0}, FPR@TPR95: {fpr95*100.0}, optimal_threshold: {optimal_threshold}, IoU: {IoU}\n"
+    result_content = f"{evaluation_props}, AUPRC score: {prc_auc*100.0}, FPR@TPR95: {fpr95*100.0}\n"
+    # , optimal_threshold: {optimal_threshold}, IoU: {IoU}
     print(result_content)
     
     result_path = "results.txt"
