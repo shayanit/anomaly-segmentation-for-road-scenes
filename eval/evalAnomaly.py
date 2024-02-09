@@ -16,6 +16,8 @@ from bisenetv1 import BiSeNetV1
 import sys
 from torchvision.transforms import Resize
 import torch.nn.functional as F
+from enet_utils import load_checkpoint
+import torch.optim as optim
 
 seed = 42
 
@@ -86,14 +88,14 @@ def compute_ood_gts(ood_gts, pathGT):
             ood_gts = np.where((ood_gts == 255), 1, ood_gts)
         return ood_gts
 
-def load_my_state_dict(model, state_dict):  #custom function to load model when not all dict elements
+def load_my_state_dict(model, state_dict):  # custom function to load model when not all dict elements
     own_state = model.state_dict()
     for name, param in state_dict.items():
         if name not in own_state:
-            if name.startswith("module."):
-                own_state[name.split("module.")[-1]].copy_(param)
+            if name.startswith('module.'):
+                own_state[name.split('module.')[-1]].copy_(param)
             else:
-                print(name, " not loaded")
+                print(name, ' not loaded')
                 continue
         else:
             own_state[name].copy_(param)
@@ -119,7 +121,9 @@ def main():
     dataset = dataset.split("/")[-3]
     evaluation_props = f"{args.model}, {args.method}, {dataset}, t={args.temperature}"
     if not args.q:
-        print(f"\nEvaluating - {evaluation_props}")
+        print(f"pre-trained load dir: {args.loadDir}")
+        print(f"pre-trained model file name: {args.loadWeights}")
+        print(f"Evaluating - {evaluation_props}")
     
     anomaly_score_list = np.array([])
     ood_gts_list = np.array([])
@@ -139,11 +143,9 @@ def main():
         model = load_my_state_dict(model, torch.load(weightspath))
     elif args.model == "enet":
         model = ENet(NUM_CLASSES)
-        # model = load_my_state_dict(model, torch.load(weightspath, map_location=torch.device(device))['state_dict'])
-        enet_weights = torch.load(weightspath, map_location=torch.device('cpu'))
-        model.load_state_dict(enet_weights['state_dict'])
+        optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+        model, _, _, _ = load_checkpoint(model, optimizer, args.loadDir, args.loadWeights)
         model.to(device)
-    
     # print ("Model and weights loaded successfully!")
     model.eval()
     
