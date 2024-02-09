@@ -111,6 +111,7 @@ def main():
     parser.add_argument('--batch-size', type=int, default=1)
     parser.add_argument('--method', default="msp")
     parser.add_argument('--temperature', type=float, default=1)
+    parser.add_argument('--q', action='store_true')
     # parser.add_argument('--cpu', action='store_true')
     args = parser.parse_args()
     
@@ -149,7 +150,7 @@ def main():
     if device=="cpu":
         validation_images = validation_images[0:1]
     for path in validation_images:
-        print(path)
+        print(path) if args.q else ''
         images = torch.from_numpy(np.array(Image.open(path).convert('RGB'))).unsqueeze(0).float().to(device)
         images = images.permute(0,3,1,2)
         
