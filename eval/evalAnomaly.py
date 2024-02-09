@@ -118,7 +118,8 @@ def main():
     dataset = args.input
     dataset = dataset.split("/")[-3]
     evaluation_props = f"{args.model}, {args.method}, {dataset}, t={args.temperature}"
-    print(f"Evaluating - {evaluation_props}")
+    if not args.q:
+        print(f"\nEvaluating - {evaluation_props}")
     
     anomaly_score_list = np.array([])
     ood_gts_list = np.array([])
@@ -150,7 +151,8 @@ def main():
     if device=="cpu":
         validation_images = validation_images[0:1]
     for path in validation_images:
-        print(path) if not args.q else ''
+        if not args.q:
+            print(path) 
         images = torch.from_numpy(np.array(Image.open(path).convert('RGB'))).unsqueeze(0).float().to(device)
         images = images.permute(0,3,1,2)
         
@@ -260,7 +262,7 @@ def main():
     
     # IoU = intersection_over_union(ground_truth, prediction)
     
-    result_content = f"{evaluation_props}, AUPRC score: {prc_auc*100.0}, FPR@TPR95: {fpr95*100.0}\n"
+    result_content = f"{evaluation_props}, AUPRC score: {prc_auc*100.0}, FPR@TPR95: {fpr95*100.0}"
     # , optimal_threshold: {optimal_threshold}, IoU: {IoU}
     print(result_content)
     
