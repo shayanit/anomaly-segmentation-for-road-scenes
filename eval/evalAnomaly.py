@@ -18,6 +18,7 @@ from torchvision.transforms import Resize
 import torch.nn.functional as F
 from enet_utils import load_checkpoint
 import torch.optim as optim
+from torchvision.transforms import Resize
 
 seed = 42
 
@@ -135,26 +136,27 @@ def main():
 
     # Create model and load state dict
     if args.model == "erfnet":
-        model = ERFNet(NUM_CLASSES).to(device)
-        model = load_my_state_dict(model, torch.load(weightspath, map_location=lambda storage, loc: storage))
+        model = ERFNet(NUM_CLASSES)
+        model = load_my_state_dict(model, torch.load(weightspath, map_location=torch.device('cpu')))
     elif args.model == "bisenet":
-        model = BiSeNetV1(NUM_CLASSES).to(device)
+        model = BiSeNetV1(NUM_CLASSES)
+        # model = load_my_state_dict(model, torch.load(weightspath, map_location=torch.device('cpu')))
+        model.load_state_dict(torch.load(weightspath, map_location=torch.device('cpu')))
         model.aux_mode = 'eval' # aux_mode can be train, eval, pred
-        model = load_my_state_dict(model, torch.load(weightspath))
     elif args.model == "enet":
         model = ENet(NUM_CLASSES)
         optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
         model, _, _, _ = load_checkpoint(model, optimizer, args.loadDir, args.loadWeights)
-        model.to(device)
     # print ("Model and weights loaded successfully!")
+    
+    model.to(device)
     model.eval()
     
     validation_images = glob.glob(os.path.expanduser(str(args.input)))
     if device=="cpu":
-        validation_images = validation_images[0:1]
+        validation_images = validation_images[0:2]
     for path in validation_images:
-        if not args.q:
-            print(path) 
+        print(path) if not args.q else ''
         images = torch.from_numpy(np.array(Image.open(path).convert('RGB'))).unsqueeze(0).float().to(device)
         images = images.permute(0,3,1,2)
         
@@ -168,8 +170,11 @@ def main():
             model_output = model_output[0]
         
         # Compute anomaly_result based on the method
+        print(f"model_output result shape is: {model_output.shape}") if not args.q else ''
         result = model_output.squeeze(0)
+        print(f"after squeeze(0): {result.shape}") if not args.q else ''
         trimmed_result = result[:-1]
+        print(f"after trim: {trimmed_result.shape}") if not args.q else ''
         if args.method == 'maxlogit':
             # Minimum logit is most anomalous as it's least confident
             anomaly_result = -1 * max_logit_normalized(trimmed_result)
@@ -186,10 +191,13 @@ def main():
         pathGT = compute_pathGT(path)
 
         mask = Image.open(pathGT)
+        if args.model == "bisenet":
+            mask = Resize((1024, 1024))(mask)
         np_mask = np.array(mask)
 
         # out-of-distribution ground truths
         ood_gts = compute_ood_gts(np_mask, pathGT)
+        print(f"ood_gts shape: {ood_gts.shape}") if not args.q else ''
 
         if 1 not in np.unique(ood_gts):
             # no pixels labeled as anomaly
@@ -197,6 +205,7 @@ def main():
             continue              
         else:
              anomaly_result = anomaly_result.data.cpu().numpy()
+             print(f"anomaly_result shape: {anomaly_result.shape}") if not args.q else ''
             #  ood_gts_list.append(ood_gts)
             #  anomaly_score_list.append(anomaly_result)
              ood_gts_list = np.append(ood_gts_list, ood_gts)
