@@ -97,14 +97,16 @@ def main(args):
     start = time.time()
 
     for step, (images, labels, filename, filenameGt) in enumerate(loader):
-        if (not args.cpu):
-            images = images.cuda()
-            labels = labels.cuda()
+        # if (not args.cpu):
+        images = images.to(device)
+        labels = labels.to(device)
 
         inputs = Variable(images)
         with torch.no_grad():
             outputs = model(inputs)
-
+        
+        if args.loadModel == "bisenet":
+            outputs = outputs[0]
         iouEvalVal.addBatch(outputs.max(1)[1].unsqueeze(1).data, labels)
 
         filenameSave = filename[0].split("leftImg8bit/")[1] 
