@@ -18,7 +18,6 @@ from torchvision.transforms import Resize
 import torch.nn.functional as F
 from enet_utils import load_checkpoint
 import torch.optim as optim
-from torchvision.transforms import Resize
 
 seed = 42
 

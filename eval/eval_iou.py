@@ -22,6 +22,13 @@ from dataset import cityscapes
 from erfnet import ERFNet
 from transform import Relabel, ToLabel, Colorize
 from iouEval import iouEval, getColorEntry
+from enet import ENet
+from bisenetv1 import BiSeNetV1
+import sys
+from torchvision.transforms import Resize
+import torch.nn.functional as F
+from enet_utils import load_checkpoint
+import torch.optim as optim
 
 NUM_CHANNELS = 3
 NUM_CLASSES = 20
@@ -37,7 +44,22 @@ target_transform_cityscapes = Compose([
     Relabel(255, 19),   #ignore label to 19
 ])
 
+def load_my_state_dict(model, state_dict):  #custom function to load model when not all dict elements
+    own_state = model.state_dict()
+    for name, param in state_dict.items():
+        if name not in own_state:
+            if name.startswith("module."):
+                own_state[name.split("module.")[-1]].copy_(param)
+            else:
+                print(name, " not loaded")
+                continue
+        else:
+            own_state[name].copy_(param)
+    return model
+
 def main(args):
+    
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     modelpath = args.loadDir + args.loadModel
     weightspath = args.loadDir + args.loadWeights
@@ -45,29 +67,22 @@ def main(args):
     print ("Loading model: " + modelpath)
     print ("Loading weights: " + weightspath)
 
-    model = ERFNet(NUM_CLASSES)
-
-    #model = torch.nn.DataParallel(model)
-    if (not args.cpu):
-        model = torch.nn.DataParallel(model).cuda()
-
-    def load_my_state_dict(model, state_dict):  #custom function to load model when not all dict elements
-        own_state = model.state_dict()
-        for name, param in state_dict.items():
-            if name not in own_state:
-                if name.startswith("module."):
-                    own_state[name.split("module.")[-1]].copy_(param)
-                else:
-                    print(name, " not loaded")
-                    continue
-            else:
-                own_state[name].copy_(param)
-        return model
-
-    model = load_my_state_dict(model, torch.load(weightspath, map_location=lambda storage, loc: storage))
-    print ("Model and weights LOADED successfully")
-
-
+    # Create model and load state dict
+    if args.loadModel == "erfnet":
+        model = ERFNet(NUM_CLASSES)
+        model = load_my_state_dict(model, torch.load(weightspath, map_location=torch.device('cpu')))
+    elif args.loadModel == "bisenet":
+        model = BiSeNetV1(NUM_CLASSES)
+        # model = load_my_state_dict(model, torch.load(weightspath, map_location=torch.device('cpu')))
+        model.load_state_dict(torch.load(weightspath, map_location=torch.device('cpu')))
+        model.aux_mode = 'eval' # aux_mode can be train, eval, pred
+    elif args.loadModel == "enet":
+        model = ENet(NUM_CLASSES)
+        optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+        model, _, _, _ = load_checkpoint(model, optimizer, args.loadDir, args.loadWeights)
+    # print ("Model and weights loaded successfully!")
+    
+    model.to(device)
     model.eval()
 
     if(not os.path.exists(args.datadir)):
@@ -144,6 +159,6 @@ if __name__ == '__main__':
     parser.add_argument('--datadir', default="/home/shyam/ViT-Adapter/segmentation/data/cityscapes/")
     parser.add_argument('--num-workers', type=int, default=4)
     parser.add_argument('--batch-size', type=int, default=1)
-    parser.add_argument('--cpu', action='store_true')
+    # parser.add_argument('--cpu', action='store_true')
 
     main(parser.parse_args())
