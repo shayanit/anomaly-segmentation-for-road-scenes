@@ -38,6 +38,14 @@ input_transform_cityscapes = Compose([
     Resize(512, Image.BILINEAR),
     ToTensor(),
 ])
+input_transform_bisenetv1_cityscapes = Compose(
+    [
+        Resize(512, Image.BILINEAR),
+        ToTensor(),
+        Normalize(mean=torch.tensor([0.485, 0.456, 0.406]), std=torch.tensor([0.229, 0.224, 0.225])),
+    ]
+)
+
 target_transform_cityscapes = Compose([
     Resize(512, Image.NEAREST),
     ToLabel(),
@@ -76,10 +84,12 @@ def main(args):
         # model = load_my_state_dict(model, torch.load(weightspath, map_location=torch.device('cpu')))
         model.load_state_dict(torch.load(weightspath, map_location=torch.device('cpu')))
         model.aux_mode = 'eval' # aux_mode can be train, eval, pred
+        input_transform_cityscapes = input_transform_bisenetv1_cityscapes
     elif args.loadModel == "enet":
         model = ENet(NUM_CLASSES)
         optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
         model, _, _, _ = load_checkpoint(model, optimizer, args.loadDir, args.loadWeights)
+        
     # print ("Model and weights loaded successfully!")
     
     model.to(device)
@@ -105,7 +115,9 @@ def main(args):
         with torch.no_grad():
             outputs = model(inputs)
         
-        if args.loadModel == "bisenet":
+        if args.loadModel == 'enet':
+            outputs = torch.roll(outputs, -1, 1)
+        elif args.loadModel == 'bisenetv1':
             outputs = outputs[0]
         iouEvalVal.addBatch(outputs.max(1)[1].unsqueeze(1).data, labels)
 
