@@ -165,8 +165,12 @@ def main():
         with torch.no_grad():
             model_output = model(images)
             
-        if args.model == "bisenet":
-            model_output = model_output[0]
+        if args.loadModel == 'enet':
+            # we roll -1 because according to PyTorch-ENet\data\cityscapes.py 
+            # the first class in unlabeled but we want it to be the last.
+            outputs = torch.roll(outputs, -1, 1)
+        elif args.loadModel == 'bisenet':
+            outputs = outputs[0]
         
         # Compute anomaly_result based on the method
         print(f"model_output result shape is: {model_output.shape}") if not args.q else ''

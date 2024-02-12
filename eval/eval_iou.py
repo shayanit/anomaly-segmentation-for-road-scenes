@@ -30,27 +30,7 @@ import torch.nn.functional as F
 from enet_utils import load_checkpoint
 import torch.optim as optim
 
-NUM_CHANNELS = 3
-NUM_CLASSES = 20
 
-image_transform = ToPILImage()
-input_transform_cityscapes = Compose([
-    Resize(512, Image.BILINEAR),
-    ToTensor(),
-])
-input_transform_bisenetv1_cityscapes = Compose(
-    [
-        Resize(512, Image.BILINEAR),
-        ToTensor(),
-        Normalize(mean=torch.tensor([0.485, 0.456, 0.406]), std=torch.tensor([0.229, 0.224, 0.225])),
-    ]
-)
-
-target_transform_cityscapes = Compose([
-    Resize(512, Image.NEAREST),
-    ToLabel(),
-    Relabel(255, 19),   #ignore label to 19
-])
 
 def load_my_state_dict(model, state_dict):  #custom function to load model when not all dict elements
     own_state = model.state_dict()
@@ -66,7 +46,21 @@ def load_my_state_dict(model, state_dict):  #custom function to load model when 
     return model
 
 def main(args):
-    
+    NUM_CHANNELS = 3
+    NUM_CLASSES = 20
+
+    image_transform = ToPILImage()
+
+    input_transform_cityscapes = Compose([
+        Resize(512, Image.BILINEAR),
+        ToTensor(),
+    ])
+
+    target_transform_cityscapes = Compose([
+        Resize(512, Image.NEAREST),
+        ToLabel(),
+        Relabel(255, 19),   #ignore label to 19
+    ])
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     modelpath = args.loadDir + args.loadModel
@@ -84,7 +78,14 @@ def main(args):
         # model = load_my_state_dict(model, torch.load(weightspath, map_location=torch.device('cpu')))
         model.load_state_dict(torch.load(weightspath, map_location=torch.device('cpu')))
         model.aux_mode = 'eval' # aux_mode can be train, eval, pred
-        input_transform_cityscapes = input_transform_bisenetv1_cityscapes
+        # Normalizaton based on BiSeNet/tensorrt/segment.py get_image function
+        input_transform_cityscapes = Compose(
+            [
+                Resize(512, Image.BILINEAR),
+                ToTensor(),
+                Normalize(mean=torch.tensor([0.485, 0.456, 0.406]), std=torch.tensor([0.229, 0.224, 0.225])),
+            ]
+        )
     elif args.loadModel == "enet":
         model = ENet(NUM_CLASSES)
         optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
@@ -116,9 +117,12 @@ def main(args):
             outputs = model(inputs)
         
         if args.loadModel == 'enet':
+            # we roll -1 because according to PyTorch-ENet\data\cityscapes.py 
+            # the first class in unlabeled but we want it to be the last.
             outputs = torch.roll(outputs, -1, 1)
-        elif args.loadModel == 'bisenetv1':
+        elif args.loadModel == 'bisenet':
             outputs = outputs[0]
+        
         iouEvalVal.addBatch(outputs.max(1)[1].unsqueeze(1).data, labels)
 
         filenameSave = filename[0].split("leftImg8bit/")[1] 
