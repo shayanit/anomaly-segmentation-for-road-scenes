@@ -165,17 +165,18 @@ def main():
         with torch.no_grad():
             model_output = model(images)
             
-        if args.loadModel == 'enet':
+        if args.model == 'enet':
             # we roll -1 because according to PyTorch-ENet\data\cityscapes.py 
             # the first class in unlabeled but we want it to be the last.
-            outputs = torch.roll(outputs, -1, 1)
-        elif args.loadModel == 'bisenet':
-            outputs = outputs[0]
+            model_output = torch.roll(model_output, -1, 1)
+        elif args.model == 'bisenet':
+            model_output = model_output[0]
         
         # Compute anomaly_result based on the method
         print(f"model_output result shape is: {model_output.shape}") if not args.q else ''
         result = model_output.squeeze(0)
         print(f"after squeeze(0): {result.shape}") if not args.q else ''
+        # print(f"unique values in model output: {torch.unique(result.flatten())}")
         trimmed_result = result[:-1]
         print(f"after trim: {trimmed_result.shape}") if not args.q else ''
         if args.method == 'maxlogit':
