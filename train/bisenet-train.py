@@ -91,6 +91,6 @@ if __name__ == '__main__':
         val_loss /= len(dataset_val)
         print(f"Epoch [{epoch+1}/{num_epochs}], Validation Loss: {val_loss:.4f}")
 
-    # Save the trained model
-    torch.save(bisenet.state_dict(), 'bisenetv1_model.pth')
-    print("Saved!")
+        # Save the trained model
+        torch.save(bisenet.state_dict(), f"bisenetv1_model_e{epoch}.pth")
+        print("Saved!")
