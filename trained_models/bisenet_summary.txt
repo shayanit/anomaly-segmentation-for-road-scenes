@@ -1,0 +1,23 @@
+Trained on 20 categories.
+Per-Class IoU:
+90.04 Road
+41.75 sidewalk
+77.10 building
+7.69 wall
+15.18 fence
+19.63 pole
+1.69 traffic light
+15.62 traffic sign
+78.14 vegetation
+37.38 terrain
+81.29 sky
+42.98 person
+0.00 rider
+74.03 car
+0.15 truck
+0.11 bus
+0.00 train
+0.17 motorcycle
+28.57 bicycle
+=======================================
+MEAN IoU:  32.18 %
