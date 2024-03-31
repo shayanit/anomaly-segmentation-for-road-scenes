@@ -109,7 +109,7 @@ def main():
     parser.add_argument('--model', default="erfnet")
     parser.add_argument('--subset', default="val")  #can be val or train (must have labels)
     parser.add_argument('--datadir', default="/home/shyam/ViT-Adapter/segmentation/data/cityscapes/")
-    parser.add_argument('--num-workers', type=int, default=4)
+    parser.add_argument('--num-workers', type=int, default=2)
     parser.add_argument('--batch-size', type=int, default=1)
     parser.add_argument('--method', default="msp")
     parser.add_argument('--temperature', type=float, default=1)
