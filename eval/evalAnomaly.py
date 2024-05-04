@@ -23,14 +23,14 @@ from torchvision.transforms import ToTensor
 
 input_transform = Compose(
     [
-        Resize((256, 512), Image.BILINEAR),
+        Resize((512, 1024), Image.BILINEAR),
         ToTensor(),
     ]
 )
 
 label_transform = Compose(
     [
-        Resize((256, 512), Image.BILINEAR),
+        Resize((512, 1024), Image.BILINEAR),
     ]
 )
 
@@ -134,7 +134,7 @@ def main():
     
     dataset = args.input
     dataset = dataset.split("/")[-3]
-    evaluation_props = f"{args.model}, {args.method}, {dataset}, t={args.temperature}"
+    evaluation_props = f"{args.model}\t{args.method}\t{dataset[0:15]}\tt={args.temperature}"
     if not args.q:
         print(f"pre-trained load dir: {args.loadDir}")
         print(f"pre-trained model file name: {args.loadWeights}")
@@ -288,7 +288,7 @@ def main():
     
     # IoU = intersection_over_union(ground_truth, prediction)
     
-    result_content = f"{evaluation_props}, AUPRC score: {prc_auc*100.0}, FPR@TPR95: {fpr95*100.0}"
+    result_content = f"{evaluation_props}\tAUPRC score: {round(prc_auc*100.0,3)}\tFPR@TPR95: {round(fpr95*100.0,3)}"
     # , optimal_threshold: {optimal_threshold}, IoU: {IoU}
     print(result_content)
     
