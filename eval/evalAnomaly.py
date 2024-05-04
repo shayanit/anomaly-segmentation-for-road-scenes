@@ -18,6 +18,21 @@ from torchvision.transforms import Resize
 import torch.nn.functional as F
 from enet_utils import load_checkpoint
 import torch.optim as optim
+from torchvision.transforms import Compose, Resize
+from torchvision.transforms import ToTensor
+
+input_transform = Compose(
+    [
+        Resize((256, 512), Image.BILINEAR),
+        ToTensor(),
+    ]
+)
+
+label_transform = Compose(
+    [
+        Resize((256, 512), Image.BILINEAR),
+    ]
+)
 
 seed = 42
 
@@ -156,11 +171,8 @@ def main():
         validation_images = validation_images[0:2]
     for path in validation_images:
         print(path) if not args.q else ''
-        images = torch.from_numpy(np.array(Image.open(path).convert('RGB'))).unsqueeze(0).float().to(device)
-        images = images.permute(0,3,1,2)
-        
-        if args.model == 'bisenet':
-            images = Resize((1024, 1024))(images)
+        images = (Image.open(path).convert('RGB'))
+        images = input_transform(images).unsqueeze(0).float().to(device)
         
         with torch.no_grad():
             model_output = model(images)
@@ -195,8 +207,7 @@ def main():
         pathGT = compute_pathGT(path)
 
         mask = Image.open(pathGT)
-        if args.model == "bisenet":
-            mask = Resize((1024, 1024))(mask)
+        mask = label_transform(mask)
         np_mask = np.array(mask)
 
         # out-of-distribution ground truths
