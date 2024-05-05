@@ -209,7 +209,7 @@ def main():
             anomaly_result = softmax_probs[-1]
         else:
             sys.exit("No method argument is defined.")
-        print(f"anomaly result shape: {anomaly_result.shape}")
+        # print(f"anomaly result shape: {anomaly_result.shape}")
 
         if args.showimages:
             plt.imshow(min_max_scale(anomaly_result.cpu()), cmap="coolwarm", interpolation='nearest')
