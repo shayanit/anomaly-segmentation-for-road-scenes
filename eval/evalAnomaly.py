@@ -20,6 +20,7 @@ from enet_utils import load_checkpoint
 import torch.optim as optim
 from torchvision.transforms import Compose, Resize
 from torchvision.transforms import ToTensor
+import matplotlib.pyplot as plt
 
 input_transform = Compose(
     [
@@ -129,6 +130,7 @@ def main():
     parser.add_argument('--method', default="msp")
     parser.add_argument('--temperature', type=float, default=1)
     parser.add_argument('--q', action='store_true')
+    parser.add_argument('--showimages', action='store_true')
     # parser.add_argument('--cpu', action='store_true')
     args = parser.parse_args()
     
@@ -172,8 +174,12 @@ def main():
     for path in validation_images:
         print(path) if not args.q else ''
         images = (Image.open(path).convert('RGB'))
-        images = input_transform(images).unsqueeze(0).float().to(device)
         
+        if args.showimages:
+            plt.imshow(images)
+            plt.show() 
+        
+        images = input_transform(images).unsqueeze(0).float().to(device)
         with torch.no_grad():
             model_output = model(images)
             
@@ -203,6 +209,12 @@ def main():
             anomaly_result = softmax_probs[-1]
         else:
             sys.exit("No method argument is defined.")
+        print(f"anomaly result shape: {anomaly_result.shape}")
+
+        if args.showimages:
+            plt.imshow(min_max_scale(anomaly_result.cpu()), cmap="coolwarm", interpolation='nearest')
+            plt.colorbar()
+            plt.show() 
         
         pathGT = compute_pathGT(path)
 
