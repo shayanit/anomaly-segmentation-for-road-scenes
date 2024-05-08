@@ -3,7 +3,7 @@ In the context of existing deep networks, their performance diminishes significa
 
 In this project, the objective was to develop compact anomaly segmentation models capable of real-time deployment. The aim was to create models that could run efficiently on small devices, aligning with the memory constraints typically encountered in edge applications. Specifically, the focus was on designing models suitable for deployment on smart cameras with limited onboard processing capacity.
 
-# Dataset
+<!-- # Dataset
 For training the model, we use the Cityscapes dataset.
 
 # Tasks
@@ -75,4 +75,4 @@ Based on the results presented in the tables, several key conclusions can be dra
 In conclusion, the results highlight the importance of careful model selection and method implementation for effective anomaly detection in various real-world scenarios. Further research could focus on optimizing models and methods to improve overall performance and address specific challenges encountered in anomaly detection tasks.
 
 # Project information
-This project repository is created as part of Advanced Machine Learning course at Polytechnic University of Turin. Mr. [Shyam Nandan Rai](https://github.com/shyam671) was the tutor of this project and provided the sample code.
+This project repository is created as part of Advanced Machine Learning course at Polytechnic University of Turin. Mr. [Shyam Nandan Rai](https://github.com/shyam671) was the tutor of this project and provided the sample code. -->
