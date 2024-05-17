@@ -169,8 +169,8 @@ def main():
     model.eval()
     
     validation_images = glob.glob(os.path.expanduser(str(args.input)))
-    if device=="cpu":
-        validation_images = validation_images[0:2]
+    # if device=="cpu":
+    #     validation_images = validation_images[0:2]
     for path in validation_images:
         print(path) if not args.q else ''
         images = (Image.open(path).convert('RGB'))
