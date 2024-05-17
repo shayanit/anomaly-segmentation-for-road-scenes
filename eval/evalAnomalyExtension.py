@@ -178,7 +178,11 @@ def main():
         with torch.no_grad():
             model_output = model(images)
         
+<<<<<<< HEAD
         # print(model_output)
+=======
+        print(model_output)
+>>>>>>> 609bf7342214bc5518fddd52a9b7e7546ba87847
         if args.showimages:
             # Sample tensor of shape [1, 20, 224, 448]
             # In practice, this will be your actual tensor from your model
