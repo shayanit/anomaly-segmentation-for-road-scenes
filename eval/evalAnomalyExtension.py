@@ -178,30 +178,27 @@ def main():
         with torch.no_grad():
             model_output = model(images)
         
-<<<<<<< HEAD
         # print(model_output)
-=======
-        print(model_output)
->>>>>>> 609bf7342214bc5518fddd52a9b7e7546ba87847
-        if args.showimages:
-            # Sample tensor of shape [1, 20, 224, 448]
-            # In practice, this will be your actual tensor from your model
+        if (args.showimages):
             tensor = model_output
 
             # Remove the singleton dimension at the start
-            tensor = tensor.squeeze(0)  # Now shape is [20, 224, 448]
+            tensor = tensor.squeeze(0)  # Now shape is [20, height, width]
+
+            # Get the dimensions from the tensor
+            num_classes, height, width = tensor.shape
 
             # Get the predicted class for each pixel
-            predicted_classes = tensor.argmax(dim=0).cpu().numpy()  # Shape [224, 448]
+            predicted_classes = tensor.argmax(dim=0).cpu().numpy()  # Shape [height, width]
 
-            # Define a color map for the 20 classes
-            colors = plt.cm.get_cmap('tab20', 20)
+            # Define a color map for the classes
+            colors = plt.cm.get_cmap('tab20', num_classes)
 
             # Create an RGB image to visualize the segmentation
-            segmentation_image = np.zeros((224, 448, 3), dtype=np.float32)
+            segmentation_image = np.zeros((height, width, 3), dtype=np.float32)
 
             # Map each class to its corresponding color
-            for class_index in range(20):
+            for class_index in range(num_classes):
                 mask = predicted_classes == class_index
                 color = colors(class_index)[:3]  # Get RGB color
 
@@ -214,6 +211,12 @@ def main():
             plt.axis('off')
             plt.title('Segmentation Map')
             plt.show()
+        if args.model == 'enet':
+            # we roll -1 because according to PyTorch-ENet\data\cityscapes.py 
+            # the first class in unlabeled but we want it to be the last.
+            model_output = torch.roll(model_output, -1, 1)
+        elif args.model == 'bisenet':
+            model_output = model_output[0]
 
         # Compute anomaly_result based on the method
         print(f"model_output result shape is: {model_output.shape}") if not args.q else ''
