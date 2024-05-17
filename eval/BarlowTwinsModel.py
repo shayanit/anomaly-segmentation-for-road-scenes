@@ -1,24 +1,12 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F 
+import torchvision.models as models
 
-# Define Barlow Twins model
-class BarlowTwinsModel(nn.Module):
-    def __init__(self, num_classes=20):
-        super().__init__()
-        self.backbone = torch.hub.load('facebookresearch/barlowtwins:main', 'resnet50')
-        # Freeze the backbone
-        for param in self.backbone.parameters():
-            param.requires_grad = False
-        # Modify the last fully connected layer
-        self.fc = nn.Conv2d(1000, num_classes, kernel_size=1)
-
-    def forward(self, x):
-        x = self.backbone(x)
-        # Reshape to add spatial dimensions
-        x = x.unsqueeze(-1).unsqueeze(-1)  # Add two singleton dimensions at the end
-        # print(x.shape)
-        x = self.fc(x)
-        # Upsample the output tensor to match the original image size
-        x = nn.functional.interpolate(x, size=(224, 448), mode='bilinear', align_corners=False)
-        return x
+barlowtwins_resnet = torch.hub.load('facebookresearch/barlowtwins:main', 'resnet50')
+for param in barlowtwins_resnet.parameters():
+    param.requires_grad = False
+barlowtwins_resnet = nn.Sequential(*list(barlowtwins_resnet.children())[:-2])
+num_classes = 20
+segmentation_head = nn.Conv2d(2048, num_classes, kernel_size=1)
+upsample = nn.Upsample(size=(224,224), mode='bilinear', align_corners=False)
+BarlowTwinsModel = nn.Sequential(barlowtwins_resnet, segmentation_head, upsample)

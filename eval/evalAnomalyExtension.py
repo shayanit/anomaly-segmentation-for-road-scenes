@@ -152,7 +152,7 @@ def main():
 
     # Create model and load state dict
     if args.model == "barlow-twins":
-        model = BarlowTwinsModel(NUM_CLASSES)
+        model = BarlowTwinsModel
         print("Loaded model with default weights!") if not args.q else ''
         
     if (args.loadWeights!=""):
