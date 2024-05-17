@@ -178,6 +178,39 @@ def main():
         with torch.no_grad():
             model_output = model(images)
         
+        # print(model_output)
+        if args.showimages:
+            # Sample tensor of shape [1, 20, 224, 448]
+            # In practice, this will be your actual tensor from your model
+            tensor = model_output
+
+            # Remove the singleton dimension at the start
+            tensor = tensor.squeeze(0)  # Now shape is [20, 224, 448]
+
+            # Get the predicted class for each pixel
+            predicted_classes = tensor.argmax(dim=0).cpu().numpy()  # Shape [224, 448]
+
+            # Define a color map for the 20 classes
+            colors = plt.cm.get_cmap('tab20', 20)
+
+            # Create an RGB image to visualize the segmentation
+            segmentation_image = np.zeros((224, 448, 3), dtype=np.float32)
+
+            # Map each class to its corresponding color
+            for class_index in range(20):
+                mask = predicted_classes == class_index
+                color = colors(class_index)[:3]  # Get RGB color
+
+                # Assign color to pixels belonging to the current class
+                segmentation_image[mask] = color
+
+            # Display the segmentation image
+            plt.figure(figsize=(10, 10))
+            plt.imshow(segmentation_image)
+            plt.axis('off')
+            plt.title('Segmentation Map')
+            plt.show()
+
         # Compute anomaly_result based on the method
         print(f"model_output result shape is: {model_output.shape}") if not args.q else ''
         result = model_output.squeeze(0)
@@ -197,7 +230,7 @@ def main():
             anomaly_result = softmax_probs[-1]
         else:
             sys.exit("No method argument is defined.")
-        # print(f"anomaly result shape: {anomaly_result.shape}")
+        print(f"anomaly result shape: {anomaly_result.shape}")
 
         if args.showimages:
             plt.imshow(min_max_scale(anomaly_result.cpu()), cmap="coolwarm", interpolation='nearest')
