@@ -74,6 +74,7 @@ class MyCoTransformExtension(object):
     def __init__(self, enc, augment=True, dim=(224,224)):
         self.enc=enc
         self.augment = augment
+        self.dim = dim
         self.height = dim[0]
         pass
     def __call__(self, input, target):
