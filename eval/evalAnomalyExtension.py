@@ -21,7 +21,7 @@ import torch.optim as optim
 from torchvision.transforms import Compose, Resize
 from torchvision.transforms import ToTensor
 import matplotlib.pyplot as plt
-from BarlowTwinsModel import BarlowTwinsModel
+from Resnet50SegmentationModel import resnet50SegmentationModel
 
 
 input_transform = Compose(
@@ -124,7 +124,6 @@ def main():
     parser.add_argument("--input", type=str, default="/content/datasets/Validation_Dataset/RoadAnomaly21/images/*.png")  
     parser.add_argument('--loadDir',default="/content/drive/MyDrive/datasets/")
     parser.add_argument('--loadWeights', default="barlow-twins.pth")
-    parser.add_argument('--model', default="barlow-twins")
     parser.add_argument('--subset', default="val")  #can be val or train (must have labels)
     parser.add_argument('--datadir', default="")
     parser.add_argument('--num-workers', type=int, default=2)
@@ -138,7 +137,7 @@ def main():
     
     dataset = args.input
     dataset = dataset.split("/")[-3]
-    evaluation_props = f"{args.model}\t{args.method}\t{dataset[0:15]}\tt={args.temperature}"
+    evaluation_props = f"{args.loadWeights}\t{args.method}\t{dataset[0:15]}\tt={args.temperature}"
     if not args.q:
         print(f"Evaluating - {evaluation_props}")
     
@@ -146,21 +145,18 @@ def main():
     ood_gts_list = np.array([])
     
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-    modelpath = args.loadDir + args.model
-    weightspath = args.loadDir + args.loadWeights
+    
+    if (args.loadWeights==""):
+        model_state_dict=[]
+        print("Loading resnet50 model without weights!") if not args.q else ''
+    else:
+        weightspath = args.loadDir + args.loadWeights
+        checkpoint = torch.load(weightspath)
+        model_state_dict = checkpoint['model_state_dict']
+        print(f"Loading resnet50 model with saved weights: {weightspath}") if not args.q else ''
 
     # Create model and load state dict
-    if args.model == "barlow-twins":
-        model = BarlowTwinsModel
-        print("Loaded model with default weights!") if not args.q else ''
-        
-    if (args.loadWeights!=""):
-        checkpoint = torch.load(weightspath)
-        model.load_state_dict(checkpoint['model_state_dict'])
-        print(f"Loaded model saved weights: {weightspath}") if not args.q else ''
-        # model = load_my_state_dict(model, torch.load(weightspath, map_location=torch.device('cpu')))
-    
+    model = resnet50SegmentationModel(model_state_dict)
     model.to(device)
     model.eval()
     
@@ -211,12 +207,6 @@ def main():
             plt.axis('off')
             plt.title('Segmentation Map')
             plt.show()
-        if args.model == 'enet':
-            # we roll -1 because according to PyTorch-ENet\data\cityscapes.py 
-            # the first class in unlabeled but we want it to be the last.
-            model_output = torch.roll(model_output, -1, 1)
-        elif args.model == 'bisenet':
-            model_output = model_output[0]
 
         # Compute anomaly_result based on the method
         print(f"model_output result shape is: {model_output.shape}") if not args.q else ''
