@@ -250,7 +250,7 @@ def main():
 
         if args.showimages:
             plt.imshow(min_max_scale(anomaly_result.cpu()), cmap="coolwarm", interpolation='nearest')
-            plt.colorbar()
+            # plt.colorbar()
             plt.show() 
         
         pathGT = compute_pathGT(path)
@@ -261,6 +261,21 @@ def main():
 
         # out-of-distribution ground truths
         ood_gts = compute_ood_gts(np_mask, pathGT)
+        if args.showimages:
+          # Create an RGB image where all values are initially set to blue
+          # Shape will be (w, h, 3) for RGB
+          height, width = ood_gts.shape
+          l_image = np.zeros((height, width, 3))
+
+          # Set red color where ood_gts is 1
+          l_image[ood_gts == 1] = [1, 0, 0]  # Red
+          # Set blue color where ood_gts is 0
+          l_image[ood_gts != 1] = [0, 0, 1]  # Blue
+
+          # Display the image
+          plt.imshow(l_image)
+          plt.axis('off')  # Hide the axis
+          plt.show()
         print(f"ood_gts shape: {ood_gts.shape}") if not args.q else ''
 
         if 1 not in np.unique(ood_gts):
