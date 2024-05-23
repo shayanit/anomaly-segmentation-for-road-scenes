@@ -168,6 +168,7 @@ def main():
         
         if args.showimages:
             plt.imshow(images)
+            plt.axis('off')
             plt.show() 
         
         images = input_transform(images).unsqueeze(0).float().to(device)
@@ -202,10 +203,10 @@ def main():
                 segmentation_image[mask] = color
 
             # Display the segmentation image
-            plt.figure(figsize=(10, 10))
+            # plt.figure(figsize=(10, 10))
             plt.imshow(segmentation_image)
             plt.axis('off')
-            plt.title('Segmentation Map')
+            # plt.title('Segmentation Map')
             plt.show()
 
         # Compute anomaly_result based on the method
@@ -232,6 +233,7 @@ def main():
         if args.showimages:
             plt.imshow(min_max_scale(anomaly_result.cpu()), cmap="coolwarm", interpolation='nearest')
             # plt.colorbar()
+            plt.axis('off')
             plt.show() 
         
         pathGT = compute_pathGT(path)
